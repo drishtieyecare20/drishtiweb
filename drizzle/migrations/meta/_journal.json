@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792606620140,
+      "tag": "0000_clinic_admin_cms",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792606713175,
+      "tag": "0001_approved_image_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792607165163,
+      "tag": "0002_optional_appointment_date",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792607521182,
+      "tag": "0003_content_validation_and_booking_abuse_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793263048655,
+      "tag": "0004_careers_facilities_pages",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793538692612,
+      "tag": "0005_team_members",
+      "breakpoints": true
+    }
+  ]
+}

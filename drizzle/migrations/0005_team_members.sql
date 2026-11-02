@@ -1,0 +1,2 @@
+ALTER TABLE public.content DROP CONSTRAINT IF EXISTS content_kind_check;
+ALTER TABLE public.content ADD CONSTRAINT content_kind_check CHECK (kind IN ('slideshow','services','doctors','gallery','youtube','testimonials','facilities','jobs','team'));

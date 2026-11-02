@@ -1,0 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+export function ConfirmDelete({ label, onCancel, onConfirm, busy }: { label: string | null; onCancel: () => void; onConfirm: () => void; busy?: boolean }) {
+  return <Dialog open={!!label} onOpenChange={open => { if (!open && !busy) onCancel(); }}><DialogContent><DialogTitle>Delete {label}?</DialogTitle><DialogDescription>This cannot be undone. Photos still used elsewhere will be kept.</DialogDescription><div className="flex justify-end gap-3"><Button variant="outline" onClick={onCancel} disabled={busy}>Cancel</Button><Button variant="destructive" onClick={onConfirm} disabled={busy}>{busy ? 'Deleting…' : 'Delete'}</Button></div></DialogContent></Dialog>;
+}
