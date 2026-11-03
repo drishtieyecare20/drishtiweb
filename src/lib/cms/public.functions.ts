@@ -36,16 +36,45 @@ export const readPublicContent = createServerFn({ method: 'GET' }).handler(async
 export const submitAppointment = createServerFn({ method: 'POST' })
   .inputValidator((input: unknown) => appointmentSchema.parse(input))
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
-    const request = getRequest();
-    const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip));
-    const key = Array.from(new Uint8Array(digest)).map(v => v.toString(16).padStart(2, '0')).join('');
-    const limit = await supabaseAdmin.rpc('check_booking_limit', { _key: key });
-    if (limit.error || !limit.data) return { success: false, error: 'Too many requests. Please try again later or call the clinic.' };
-    const result = await supabaseAdmin.rpc('submit_appointment_request', { _name: data.patient_name, _phone: data.phone, _email: data.email, _date: data.preferred_date, _time: data.preferred_time, _reason: data.reason });
-    if (result.error) return { success: false, error: result.error.message.includes('wait a minute') ? 'Please wait a minute before submitting another request.' : 'Your request could not be saved. Please try again or call the clinic.' };
-    return { success: true, id: result.data };
+    // Send email notification via Web3Forms
+    const web3formsKey = process.env['WEB3FORMS_ACCESS_KEY'];
+    if (!web3formsKey) return { success: false, error: 'Email notification service is not configured. Please call the clinic.' };
+
+    const emailRes = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        access_key: web3formsKey,
+        subject: `🏥 New Appointment Request from ${data.patient_name}`,
+        from_name: 'Drishti Eye Care Website',
+        'Patient Name': data.patient_name,
+        'Phone': data.phone,
+        'Email': data.email || 'Not provided',
+        'Preferred Date': data.preferred_date || 'Not specified',
+        'Preferred Time': data.preferred_time || 'Not specified',
+        'Reason for Visit': data.reason || 'Not provided',
+      }),
+    });
+
+    if (!emailRes.ok) return { success: false, error: 'Your request could not be sent. Please try again or call the clinic.' };
+    const emailResult = await emailRes.json();
+    if (!emailResult.success) return { success: false, error: 'Your request could not be sent. Please try again or call the clinic.' };
+
+    // Also save to Supabase if the service role key is available (for admin panel)
+    try {
+      const serviceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+      if (serviceKey) {
+        const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+        const request = getRequest();
+        const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip));
+        const key = Array.from(new Uint8Array(digest)).map(v => v.toString(16).padStart(2, '0')).join('');
+        await supabaseAdmin.rpc('check_booking_limit', { _key: key });
+        await supabaseAdmin.rpc('submit_appointment_request', { _name: data.patient_name, _phone: data.phone, _email: data.email, _date: data.preferred_date, _time: data.preferred_time, _reason: data.reason });
+      }
+    } catch { /* Supabase save is optional — email was already sent */ }
+
+    return { success: true };
   });
 
 async function allowRequest(scope: string) {

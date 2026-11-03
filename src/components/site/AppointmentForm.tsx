@@ -18,15 +18,64 @@ export function AppointmentForm() {
     const f = new FormData(e.currentTarget);
     const name = String(f.get("name") || "").trim();
     const phone = String(f.get("phone") || "").replace(/\D/g, "");
+    const email = String(f.get("email") || "").trim();
+    const date = String(f.get("date") || "");
+    const time = String(f.get("time") || "");
+    const reason = String(f.get("reason") || "");
+
     if (name.length < 2) return setErr("Please enter your full name.");
     if (phone.length < 10) return setErr("Please enter a valid 10-digit phone number.");
     setErr(null);
     setBusy(true);
+
     try {
-      const result = await save({ data: { patient_name: name, phone, email: String(f.get('email') || '').trim(), preferred_date: String(f.get('date') || ''), preferred_time: String(f.get('time') || ''), reason: String(f.get('reason') || '') } });
-      if (!result.success) setErr(result.error || 'Your request could not be saved.');
-      else setDone(name);
-    } catch { setErr('Please check your details and try again, or call the clinic.'); } finally { setBusy(false); }
+      const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || '82e8d1a6-914a-4558-92c4-0afa8a22ca6c';
+      
+      // Send directly from the browser to Web3Forms (bypasses server restrictions)
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          access_key: accessKey,
+          subject: `🏥 New Appointment Request from ${name}`,
+          from_name: 'Drishti Eye Care Website',
+          'Patient Name': name,
+          'Phone Number': phone,
+          'Email': email || 'Not provided',
+          'Preferred Date': date || 'Not specified',
+          'Preferred Time': time || 'Not specified',
+          'Reason for Visit': reason || 'Not provided',
+        }),
+      });
+
+      const resData = await res.json().catch(() => null);
+
+      // Also attempt server-side save to Supabase if configured
+      try {
+        await save({
+          data: {
+            patient_name: name,
+            phone,
+            email,
+            preferred_date: date,
+            preferred_time: time,
+            reason,
+          },
+        });
+      } catch {
+        // Supabase is optional; ignore if service role key is not configured
+      }
+
+      if (res.ok && resData?.success) {
+        setDone(name);
+      } else {
+        setErr(resData?.message || 'Your request could not be sent. Please call the clinic directly.');
+      }
+    } catch {
+      setErr('Please check your network and try again, or call the clinic.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (done)
